@@ -58,7 +58,7 @@ export class CreateOrderDto {
   @IsArray()
   @IsUUID('4', { each: true, message: 'Each selected item ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Selected item IDs are required' })
-  selectedItemIds: string[]
+  selectedCartItemIds: string[]
 
   @IsEnum(PaymentMethod, { message: 'Payment method must be COD or BANKING' })
   @IsNotEmpty({ message: 'Payment method is required' })

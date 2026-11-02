@@ -5,6 +5,10 @@ export class CreatePaymentDto {
   @IsNotEmpty({ message: 'Order Code is required' })
   orderCode: string
 
+  @IsUUID('4', { message: 'Order ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Order ID is required' })
+  orderId: string
+
   @IsNumber({}, { message: 'Amount must be a number' })
   @IsPositive({ message: 'Amount must be positive' })
   amount: number

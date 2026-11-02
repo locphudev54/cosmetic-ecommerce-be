@@ -155,14 +155,15 @@ model ProductVariant {
   costPrice    Decimal @db.Decimal(10, 2)
   sellingPrice Decimal @db.Decimal(10, 2)
   stockOnHand  Int?   @default(0) // inventory quantity
-  imageUrl     String @default("")
+  // imageUrl     String @default("")
+  fileId String? // ← replaces imageUrl String; nullable for safe migration
   lowStockThreshold Int @default(0)
   maxStockThreshold Int @default(0)
   isActive     Boolean @default(true)
 
   product                  Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   attributeValues          VariantAttributeValue[]
-  // image                    VariantImage[]
+  file   File?   @relation(fields: [fileId], references: [id])
   inboundTransactionItems  InboundTransactionDetail[]
   outboundTransactionItems OutboundTransactionDetail[]
   orderDetails             OrderDetail[]
@@ -176,7 +177,7 @@ model ProductVariant {
   @@index([isActive])
   @@index([stockOnHand])
   @@index([sellingPrice])
-
+  @@index([fileId])
   // Variant filtering
   @@index([productId, isActive, stockOnHand])
   @@index([productId, sellingPrice])
@@ -189,7 +190,7 @@ model Category {
   slug        String    @unique
   description String?   @default("")
   parentId    String?  // default value of this field is null -> top-level category, otherwise it's a child category 
-  imageUrl    String?   @default("")
+  fileId      String?   // ← replaces imageUrl String; nullable for safe migration
   
   // Materialized path for performance
   path        String    @default("/") 
@@ -202,6 +203,7 @@ model Category {
   products    ProductCategory[]
   categoryAttributes  CategoryAttribute[]
   collectionCategories CollectionCategory[]
+  file        File?     @relation(fields: [fileId], references: [id])
   
   // SEO fields
   metaTitle       String?
@@ -218,6 +220,7 @@ model Category {
   @@index([path])
   @@index([slug])
   @@index([isActive])
+  @@index([fileId])
   @@map("Category")
 }
 
@@ -231,9 +234,10 @@ model Brand {
   id String @id @default(uuid())
 
   name     String @default("")
-  imageUrl String @default("")
+  fileId   String? // ← replaces imageUrl String; nullable for safe migration
 
   products Product[]
+  file     File?  @relation(fields: [fileId], references: [id])
 
     
   // Soft delete
@@ -243,6 +247,7 @@ model Brand {
   createdAt DateTime @default(now())
   updatedAt DateTime? @updatedAt
 
+  @@index([fileId])
   @@map("Brand")
 }
 
@@ -352,6 +357,8 @@ model User {
   addresses Address[]
   refreshTokens RefreshToken[]
   passwordResetToken PasswordResetToken?
+  createdFolders Folder[] @relation("FolderCreator")
+  uploadedFiles  File[]   @relation("FileUploader")
 
   createdInboundTransactions InboundTransaction[] @relation("InboundCreator")
   createdOutboundTransactions OutboundTransaction[] @relation("OutboundCreator")
@@ -409,7 +416,7 @@ model Order {
   userId String
 
   idempotencyKey String? @unique
-  code String? @unique
+  code String @unique
   status OrderStatus @default(PROCESSING)
   totalPrice Decimal @db.Decimal(10, 2)
   shippingFee Decimal @db.Decimal(10, 2) @default(0)
@@ -449,7 +456,7 @@ model ShippingInfo {
   streetAddress String @default("")
   note String @default("")
 
-  order Order @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime? @updatedAt
@@ -533,7 +540,7 @@ model OrderDetail {
   quantity Int
   productPrice Decimal @db.Decimal(10, 2)
 
-  order Order @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
 
   createdAt DateTime @default(now())
@@ -700,18 +707,20 @@ model VariantAttributeValue {
 
 model ProductImage {
   id        String   @id @default(uuid())
-  productId String
-  url       String
+  productId String  
+  fileId String          // ← replaces url String
   altText   String?
   displayOrder Int? @default(1) // For ordering images in the gallery
 
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  file   File @relation(fields: [fileId], references: [id])
 
   createdAt DateTime @default(now())
   deletedAt DateTime?
   isDeleted Boolean @default(false)
 
   @@index([productId])
+  @@index([fileId])
   @@map("ProductImage")
 }
 
@@ -769,12 +778,13 @@ model Collection {
   title       String
   slug        String   @unique
   description String?  @default("")
-  imageUrl    String?  @default("")
+  fileId      String?  // ← replaces imageUrl String; nullable for safe migration
   isActive    Boolean  @default(true)
 
   products    CollectionProduct[]
   attributes  CollectionAttribute[]
   categories CollectionCategory[]
+  file        File?    @relation(fields: [fileId], references: [id])
 
   publishedAt DateTime? // For scheduling when the collection goes live
 
@@ -790,6 +800,7 @@ model Collection {
 
   @@index([slug])
   @@index([isActive])
+  @@index([fileId])
   @@map("Collection")
 }
 
@@ -842,4 +853,59 @@ model CollectionCategory {
   @@id([collectionId, categoryId])
   @@index([collectionId])
   @@map("CollectionCategory")
+}
+
+model Folder {
+  id       String  @id @default(uuid())
+  name     String
+  path     String  // Materialized path for performance, please refer the existing path field in Category model and the existing logic in category service, because the folder structure is similar to category hierarchy
+
+  parentId String?
+  parent   Folder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children Folder[] @relation("FolderTree")
+
+  createdById String
+  createdBy   User   @relation("FolderCreator", fields: [createdById], references: [id])
+
+  files File[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  @@index([parentId])
+  @@index([createdById])
+  @@map("Folder")
+}
+
+model File {
+  id String @id @default(uuid())
+
+  folderId String
+  folder   Folder @relation(fields: [folderId], references: [id])
+
+  originalName        String
+  cloudinaryPublicId  String  @unique
+  cloudinaryUrl       String
+  cloudinarySecureUrl String
+  format              String  // "jpg" | "png" | "webp" etc.
+  width               Int
+  height              Int
+  fileSizeBytes       Int
+
+  uploadedById String
+  uploadedBy   User   @relation("FileUploader", fields: [uploadedById], references: [id])
+
+  productImages   ProductImage[]
+  productVariants ProductVariant[]
+  categories       Category[]
+  brands           Brand[]
+  collections      Collection[]
+
+  createdAt DateTime  @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([folderId])
+  @@index([uploadedById])
+  @@index([cloudinaryPublicId])
+  @@map("File")
 }

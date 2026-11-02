@@ -13,6 +13,7 @@ export class AppController {
   @Get()
   async getHello() {
     this.logger.log('Hello endpoint called')
+    return { name: 'LOc' }
     return this.appService.getHello()
   }
 

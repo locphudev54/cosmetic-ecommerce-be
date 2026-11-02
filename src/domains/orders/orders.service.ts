@@ -87,7 +87,7 @@ export class OrdersService {
     }
 
     // 3. Filter to selected items only
-    const selectedItems = cart.items.filter((item) => dto.selectedItemIds.includes(item.id))
+    const selectedItems = cart.items.filter((item) => dto.selectedCartItemIds.includes(item.id))
     if (selectedItems.length === 0) {
       throw new BadRequestException('No valid items selected for checkout')
     }
@@ -189,7 +189,7 @@ export class OrdersService {
         // Remove purchased items from cart
         await tx.cartItem.deleteMany({
           where: {
-            id: { in: dto.selectedItemIds },
+            id: { in: dto.selectedCartItemIds },
             cartId: dto.cartId
           }
         })
@@ -214,16 +214,16 @@ export class OrdersService {
       }
 
       // 10. Send order confirmation email (non-blocking)
-      try {
-        await this.emailProducer.sendOrderConfirmationEmail(
-          dto.shippingInfo.email,
-          dto.shippingInfo.fullName,
-          orderCode,
-          totalPrice + shippingFee
-        )
-      } catch (error) {
-        this.logger.error(`Failed to enqueue order confirmation email for ${orderCode}`, error)
-      }
+      // try {
+      //   await this.emailProducer.sendOrderConfirmationEmail(
+      //     dto.shippingInfo.email,
+      //     dto.shippingInfo.fullName,
+      //     orderCode,
+      //     totalPrice + shippingFee
+      //   )
+      // } catch (error) {
+      //   this.logger.error(`Failed to enqueue order confirmation email for ${orderCode}`, error)
+      // }
 
       return order
     } finally {

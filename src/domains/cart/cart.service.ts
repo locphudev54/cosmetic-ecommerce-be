@@ -7,34 +7,26 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CartItem } from '@prisma/client'
-import { PrismaService } from 'database/prisma/prisma.service'
 import { CartGateway } from './cart.gateway'
 import { AddToCartDto } from './dto/add-to-cart.dto'
 import { UpdateCartItemDto } from './dto/update-cart-item.dto'
 import { BulkRemoveCartItemsDto } from './dto/bulk-remove-cart-items.dto'
-import {
-  CART_ITEM_INCLUDE,
-  CART_INCLUDE,
-  CartWithItems,
-  EnrichedCart,
-  EnrichedCartItem
-} from './entities/cart.entity'
+import { CART_INCLUDE, CartWithItems, EnrichedCart, EnrichedCartItem } from './entities/cart.entity'
 import ms from 'ms'
 import { Request, Response } from 'express'
+import { PrismaService } from 'database/prisma/prisma.service'
 
 const CART_COOKIE_NAME = 'cart_id'
 
+@Injectable()
 export class CartService {
   private readonly logger = new Logger(CartService.name)
-  private readonly cartCookieMaxAgeMs: number
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly cartGateway: CartGateway,
     private readonly configService: ConfigService
-  ) {
-    this.cartCookieMaxAgeMs = +ms(this.configService.get('CART_COOKIE_MAX_AGE'))
-  }
+  ) {}
 
   async getCart(req: Request, res: Response, userId?: string) {
     const guestCartId = this.getGuestCartId(req)
@@ -135,7 +127,7 @@ export class CartService {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
-      maxAge: this.cartCookieMaxAgeMs
+      maxAge: +ms(this.configService.get('CART_COOKIE_MAX_AGE'))
     })
   }
 

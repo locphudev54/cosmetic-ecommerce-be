@@ -72,3 +72,9 @@ export enum OrderSortBy {
   STATUS = 'status',
   CODE = 'code'
 }
+
+export enum PaymentResult {
+  SUCCESS,
+  FAILED,
+  PENDING
+}

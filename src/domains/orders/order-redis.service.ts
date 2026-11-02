@@ -95,14 +95,10 @@ export class OrderRedisService {
    * Store order response for an idempotency key.
    */
   async setIdempotencyResponse<T>(idempotencyKey: string, response: T): Promise<void> {
+    const ttl = +ms(this.configService.get('IDEMPOTENCY__REDIS_TTL')) / 1000
     try {
       const key = `order:idempotency:${idempotencyKey}`
-      await this.redis.set(
-        key,
-        JSON.stringify(response),
-        'EX',
-        +ms(this.configService.get('IDEMPOTENCY__REDIS_TTL')) / 1000
-      )
+      await this.redis.set(key, JSON.stringify(response), 'EX', ttl)
     } catch (error) {
       this.logger.error(`Failed to set order idempotency response: ${idempotencyKey}`, error)
     }
